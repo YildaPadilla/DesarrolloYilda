@@ -174,7 +174,7 @@
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
-    <Compile Include="Models\CrearTarjeta.cs" />
+    <Compile Include="ViewModel\TarjetaViewModel.cs" />
     <Compile Include="Models\Tarjeta.cs">
       <DependentUpon>TarjetaModel.tt</DependentUpon>
     </Compile>
@@ -194,6 +194,7 @@
       <DependentUpon>TarjetaModel.edmx</DependentUpon>
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Validaciones\ValidacionTarjeta.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Areas\HelpPage\HelpPage.css" />

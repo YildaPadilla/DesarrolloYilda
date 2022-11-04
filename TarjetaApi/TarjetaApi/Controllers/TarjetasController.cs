@@ -1,67 +1,170 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Net;
-using System.Net.Http;
 using System.Web.Http;
 using System.Web.Http.Cors;
 using TarjetaApi.Models;
+using TarjetaApi.Validaciones;
 
 namespace TarjetaApi.Controllers
 {
     [EnableCors(origins: "http://localhost:3000", headers: "*", methods: "*")]
     public class TarjetasController : ApiController
     {
-        
+        private TarjetaDBEntities db = new TarjetaDBEntities();
+
+        [HttpGet]
+        [ActionName("GetTarjeta")]
         public IHttpActionResult GetTarjeta()
         {
-            using (TarjetaDBEntities db = new TarjetaDBEntities())
+            try
             {
                 var t = db.Tarjeta.Select(x => new
                 {
                     id = x.idTarjeta,
-                    x.nummeroTarjeta,
+                    nummeroTarjeta = x.nummeroTarjeta.Substring(0, 2) + "**********" + x.nummeroTarjeta.Substring(12, 16),
                     x.fechaVencimiento,
                     x.nombreTitular,
                     x.cvv
-                }).ToList();                
+                }).ToList();
                 return Ok(t);
             }
+            catch (Exception e)
+            {
+                return InternalServerError(e); 
+                throw e;
+            }           
         }
 
-        [HttpPost]
-        public IHttpActionResult PostTarjeta(CrearTarjeta c)
+        [HttpGet]
+        [ActionName("GetTarjeta")]
+        public IHttpActionResult GetTarjeta(int? id)
         {
-            using (TarjetaDBEntities db = new TarjetaDBEntities())
+            try
             {
-                var t = new Tarjeta()
+                var t = db.Tarjeta.Select(x => new
                 {
-                    nummeroTarjeta = c.nummeroTarjeta,
-                    fechaVencimiento = c.fechaVencimiento,
-                    nombreTitular = c.nombreTitular,
-                    cvv = c.cvv
-                };
-                var tarjetaRef = db.Tarjeta.Add(t);
-                db.SaveChanges();
-                return Ok(tarjetaRef);
+                    id = x.idTarjeta,
+                    nummeroTarjeta = x.nummeroTarjeta.Substring(0, 2) + "**********" + x.nummeroTarjeta.Substring(12, 16),
+                    x.fechaVencimiento,
+                    x.nombreTitular,
+                    x.cvv
+                }).Where(x => x.id == id).ToList();
+                return Ok(t);
+            }
+            catch (Exception e)
+            {
+                return InternalServerError(e);
+                throw e;
             }
         }
 
         [HttpPost]
-        public IHttpActionResult PutTarjeta(int? id, CrearTarjeta c)
+        [ActionName("PostTarjeta")]
+        public IHttpActionResult PostTarjeta(TarjetaViewModel c)
         {
             using (TarjetaDBEntities db = new TarjetaDBEntities())
             {
-                var t = new Tarjeta()
+                try
                 {
-                    nummeroTarjeta = c.nummeroTarjeta,
-                    fechaVencimiento = c.fechaVencimiento,
-                    nombreTitular = c.nombreTitular,
-                    cvv = c.cvv
-                };
-                var tarjetaRef = db.Tarjeta.Add(t);
+                    ValidacionTarjeta v = new ValidacionTarjeta();
+                    if (v.ValidarNumeroTarjeta(c.nummeroTarjeta) == "" && v.ValidarFechaVencimiento(c.fechaVencimiento) == "" 
+                        && v.ValidarNombreTitular(c.nombreTitular) == "" && v.ValidarCVV(c.cvv) == "")
+                    {
+                        var tarjetaExiste = db.Tarjeta.Where(x => x.nummeroTarjeta == c.nummeroTarjeta).Select(x => x.nummeroTarjeta);
+                        if (tarjetaExiste == null)
+                        {
+                            var t = new Tarjeta()
+                            {
+                                nummeroTarjeta = c.nummeroTarjeta,
+                                fechaVencimiento = c.fechaVencimiento,
+                                nombreTitular = c.nombreTitular,
+                                cvv = c.cvv
+                            };
+                            var tarjetaRef = db.Tarjeta.Add(t);
+                            db.SaveChanges();
+                            return Ok(tarjetaRef);
+                        }
+                        else
+                        {
+                            return Ok("El número de tarjeta ya existe.");
+                        }
+                    }
+                    else
+                    {
+                        return BadRequest(v.respuesta);
+                    }
+                }
+                catch (Exception e)
+                {
+                    return InternalServerError(e);
+                }
+            }
+        }
+
+        [HttpPost]
+        [ActionName("PutTarjeta")]
+        public IHttpActionResult PutTarjeta(TarjetaViewModel c)
+        {
+            try
+            {
+                ValidacionTarjeta v = new ValidacionTarjeta();
+                if (v.ValidarNumeroTarjeta(c.nummeroTarjeta) == "" && v.ValidarFechaVencimiento(c.fechaVencimiento) == ""
+                    && v.ValidarNombreTitular(c.nombreTitular) == "" && v.ValidarCVV(c.cvv) == "")
+                {
+                    var tarjetaExiste = db.Tarjeta.Where(x => x.nummeroTarjeta == c.nummeroTarjeta).Select(x => x.nummeroTarjeta);
+                    if (tarjetaExiste == null)
+                    {
+                        var tarjeta = (from t in db.Tarjeta
+                               where t.idTarjeta == c.id
+                               select t).FirstOrDefault();
+
+                        tarjeta.nummeroTarjeta = c.nummeroTarjeta;
+                        tarjeta.nombreTitular = c.nombreTitular;
+                        tarjeta.fechaVencimiento = c.fechaVencimiento;
+                        tarjeta.cvv = c.cvv;
+                        db.SaveChanges();
+                        return Ok(tarjeta);
+                    }
+                    else
+                    {
+                        return Ok("El número de tarjeta ya existe.");
+                    }
+                }
+                else
+                {
+                    return BadRequest(v.respuesta);
+                }
+            }
+            catch (Exception e)
+            {
+                InternalServerError(e);
+                throw e;
+            }
+
+
+        }
+
+        [HttpPost]
+        [ActionName("DeleteTarjeta")]
+        public IHttpActionResult DeleteTarjeta(int? id)
+        {
+            try
+            {
+                Tarjeta tarjeta = db.Tarjeta.Find(id);
+                if (tarjeta == null)
+                {
+                    return NotFound();
+                }
+
+                var tarjetaRef = db.Tarjeta.Remove(tarjeta);
                 db.SaveChanges();
                 return Ok(tarjetaRef);
+
+            }
+            catch (Exception e)
+            {
+                return InternalServerError(e);
+                throw e;
             }
         }
     }
